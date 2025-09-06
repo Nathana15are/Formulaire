@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Demande Admin WhatsApp — Formulaire avancé</title>
+
+<!-- Google reCAPTCHA v2 (checkbox) - script client -->
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
+<style>
+  :root{
+    --bg1:#25D366; --bg2:#128C7E; --accent:#075E54; --white:#ffffff;
+    --success:#28a745; --danger:#dc3545; --glass: rgba(255,255,255,0.12);
+  }
+  /* dark mode variables will be toggled by .dark class on body */
+  body{ font-family:Inter,system-ui,Arial,Helvetica,sans-serif; margin:0; height:100vh; display:flex; align-items:center; justify-content:center; overflow:hidden; background:linear-gradient(-45deg,var(--bg1),var(--bg2),#075E54,#34B7F1); background-size:400% 400%; animation: bgAnim 12s linear infinite;}
+  @keyframes bgAnim{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .container{ width:95%; max-width:980px; margin:30px; display:flex; gap:30px; align-items:flex-start; z-index:10;}
+  .card{ background:rgba(255,255,255,0.98); border-radius:18px; box-shadow:0 18px 40px rgba(0,0,0,0.25); padding:26px; width:540px; transform:translateY(0); transition:transform .25s; }
+  .side{ width:300px; color:#fff; padding:20px; position:relative; }
+  h1{ margin:0 0 6px 0; color:var(--accent); font-size:22px }
+  p.lead{ margin:0 0 14px 0; color:#333; }
+  label{ display:block; margin-top:12px; font-weight:700; color:#333; font-size:14px}
+  input, textarea, select{ width:100%; padding:12px 14px; border-radius:10px; border:2px solid #ddd; box-sizing:border-box; font-size:14px; margin-top:6px; transition:border .2s, box-shadow .15s; }
+  textarea{ resize:vertical; min-height:90px; }
+  input.valid, textarea.valid, select.valid{ border-color:var(--success); box-shadow:0 6px 18px rgba(40,167,69,0.08) }
+  input.invalid, textarea.invalid, select.invalid{ border-color:var(--danger); box-shadow:0 6px 18px rgba(220,53,69,0.06) }
+
+  .input-row{ position:relative; }
+  .checkmark{ position:absolute; right:12px; top:45%; transform:translateY(-50%); font-weight:700; display:none; font-size:16px; }
+  .checkmark.valid{ display:block; color:var(--success) }
+  .checkmark.invalid{ display:block; color:var(--danger) }
+
+  .progress-wrap{ height:8px; background:#eee; border-radius:8px; overflow:hidden; margin-top:8px }
+  .progress-bar{ height:100%; width:0%; background:linear-gradient(90deg,var(--bg1),var(--bg2)); transition:width .25s; }
+
+  .whatsapp-btn{ background:linear-gradient(90deg,#25D366,#128C7E); color:white; padding:12px 16px; border-radius:12px; border:none; font-weight:800; cursor:pointer; display:flex; gap:10px; align-items:center; width:100%; justify-content:center; box-shadow:0 8px 20px rgba(37,211,102,0.18); position:relative;}
+  .whatsapp-btn .pulse{ position:absolute; width:220%; height:220%; left:-60%; top:-60%; border-radius:50%; background:rgba(37,211,102,0.18); animation:pulse 1.8s infinite; z-index:0;}
+  @keyframes pulse{0%{transform:scale(.9);opacity:.6}50%{transform:scale(1.2);opacity:0}100%{transform:scale(.9);opacity:.6}}
+
+  .toast{ position:fixed; bottom:22px; right:22px; background:var(--success); color:#fff; padding:12px 16px; border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,0.18); transform:translateY(20px); opacity:0; transition:all .35s; z-index:2000; font-weight:700 }
+  .toast.show{ transform:translateY(0); opacity:1 }
+
+  .floating-whatsapp{ position:fixed; right:20px; bottom:20px; width:62px; height:62px; border-radius:50%; background:linear-gradient(90deg,#25D366,#128C7E); display:flex; align-items:center; justify-content:center; box-shadow:0 10px 30px rgba(0,0,0,0.25); cursor:pointer; z-index:2000; }
+  .floating-whatsapp img{ width:36px; height:36px }
+
+  .qr-card{ background:rgba(255,255,255,0.06); padding:14px; border-radius:12px; text-align:center; color:#fff; margin-top:10px }
+  .badge{ display:inline-block; padding:6px 10px; background:rgba(0,0,0,0.06); color:#fff; margin-right:8px; border-radius:999px; font-weight:700; font-size:13px }
+
+  /* bubbles background */
+  .bubbles{ position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden }
+  .bubble{ position:absolute; width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,0.08); animation:rise 12s linear infinite; }
+  @keyframes rise{ 0%{transform:translateY(120vh) scale(.6); opacity:0} 20%{opacity:.4} 100%{transform:translateY(-20vh) scale(1.4); opacity:0} }
+
+  /* confetti canvas sits above background */
+  #confettiCanvas{ position:fixed; inset:0; z-index:1500; pointer-events:none }
+
+  /* shake */
+  .shake{ animation: shakeX .6s; }
+  @keyframes shakeX{ 10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(4px)} 30%,50%,70%{transform:translateX(-8px)} 40%,60%{transform:translateX(8px)} }
+
+  /* responsive */
+  @media (max-width:980px){ .container{ flex-direction:column; align-items:center } .card{ width:92% } .side{ width:92%; order:-1 } }
+</style>
+</head>
+<body>
+
+<!-- floating confetti canvas -->
+<canvas id="confettiCanvas"></canvas>
+
+<!-- decorative bubbles -->
+<div class="bubbles" id="bubbles"></div>
+
+<div class="container">
+  <!-- Left: Form card -->
+  <div class="card" id="formCard">
+    <h1>Demande Admin WhatsApp</h1>
+    <p class="lead">Remplis le formulaire — le message sera copié, puis ouvre le groupe. Tu n'auras plus qu'à coller et envoyer.</p>
+
+    <div class="progress-wrap" aria-hidden>
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <form id="adminForm" novalidate>
+      <div class="input-row">
+        <label for="name">Nom complet</label>
+        <div class="input-group">
+          <input id="name" name="name" type="text" required autocomplete="name" />
+          <span class="checkmark" id="check-name">✔</span>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <label for="phone">Numéro WhatsApp (ex: +33612345678)</label>
+        <div class="input-group">
+          <input id="phone" name="phone" type="tel" required placeholder="+33..." />
+          <span class="checkmark" id="check-phone">✔</span>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <label for="experience">Pourquoi voulez-vous devenir admin ?</label>
+        <div class="input-group">
+          <textarea id="experience" name="experience" required></textarea>
+          <span class="checkmark" id="check-experience">✔</span>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <label for="rules">Connaissez-vous les règles du groupe ?</label>
+        <div class="input-group">
+          <select id="rules" name="rules" required>
+            <option value="">--Choisissez--</option>
+            <option value="oui">Oui</option>
+            <option value="non">Non</option>
+          </select>
+          <span class="checkmark" id="check-rules">✔</span>
+        </div>
+      </div>
+
+      <!-- reCAPTCHA widget (client) -->
+      <div style="margin-top:14px;">
+        <!-- Remplace SITE_KEY par ta clé publique reCAPTCHA -->
+        <div class="g-recaptcha" data-sitekey="SITE_KEY"></div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button type="submit" class="whatsapp-btn" id="sendBtn">
+          <div class="pulse"></div>
+          <span style="position:relative;z-index:1">Envoyer via WhatsApp</span>
+        </button>
+        <button type="button" id="copyBtn" style="padding:12px 14px;border-radius:12px;background:#fff;border:2px solid rgba(0,0,0,.06);cursor:pointer">Copier</button>
+      </div>
+    </form>
+
+    <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+      <div class="badge">✔ Candidat sérieux</div>
+      <div class="badge">🏅 Respect des règles</div>
+      <div class="badge">🔒 reCAPTCHA</div>
+    </div>
+
+  </div>
+
+  <!-- Right: Side panel (QR + infos) -->
+  <div class="side">
+    <h2 style="color:#fff">Raccourci: Rejoindre le groupe</h2>
+    <div class="qr-card" id="qrCard">
+      <img id="qrImage" src="" alt="QR code" style="width:160px;height:160px;border-radius:10px;border:4px solid rgba(255,255,255,0.06)" />
+      <div style="margin-top:10px;font-weight:700">Scanner pour ouvrir le groupe</div>
+      <a id="groupLink" href="#" target="_blank" style="color:#fff;display:block;margin-top:8px;word-break:break-all">Ouvrir le groupe</a>
+      <div style="margin-top:12px;font-size:13px;opacity:.92">Astuce: si l'ouverture automatique échoue, clique sur "Copier" et colle dans le groupe.</div>
+    </div>
+
+    <div style="margin-top:20px">
+      <h3 style="color:#fff;margin-bottom:6px">Options fun</h3>
+      <button id="toggleTheme" style="padding:10px 12px;border-radius:10px;border:none;cursor:pointer;background:#fff;color:#075E54;font-weight:700">Mode Sombre/Clair</button>
+      <div style="height:12px"></div>
+      <button id="confettiBtn" style="padding:10px 12px;border-radius:10px;border:none;cursor:pointer;background:#fff;color:#075E54;font-weight:700">Lancer confetti</button>
+    </div>
+  </div>
+</div>
+
+<!-- toast -->
+<div class="toast" id="toast">✅ Message copié ! Collez-le dans le groupe WhatsApp.</div>
+
+<!-- floating WhatsApp -->
+<div class="floating-whatsapp" id="floatingBtn" title="Ouvrir le groupe">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA" />
+</div>
+
+<script>
+/* CONFIG */
+const groupLink = 'https://chat.whatsapp.com/JsASaJtmBdRKQZllThwwU1?mode=ems_copy_c';
+const qrApiBase = 'https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl='; // simple QR via Google Charts
+
+/* UI elements */
+const adminForm = document.getElementById('adminForm');
+const progressBar = document.getElementById('progressBar');
+const toast = document.getElementById('toast');
+const sendBtn = document.getElementById('sendBtn');
+const copyBtn = document.getElementById('copyBtn');
+const floatingBtn = document.getElementById('floatingBtn');
+const qrImage = document.getElementById('qrImage');
+const groupLinkA = document.getElementById('groupLink');
+const confettiBtn = document.getElementById('confettiBtn');
+const toggleTheme = document.getElementById('toggleTheme');
+const formCard = document.getElementById('formCard');
+
+/* fill qr + link */
+qrImage.src = qrApiBase + encodeURIComponent(groupLink);
+groupLinkA.href = groupLink;
+groupLinkA.textContent = groupLink;
+
+/* bubbles generation */
+const bubblesContainer = document.getElementById('bubbles');
+for(let i=0;i<14;i++){
+  const b = document.createElement('div');
+  b.className='bubble';
+  b.style.left = Math.random()*100 + '%';
+  b.style.width = (20 + Math.random()*70)+'px';
+  b.style.height = b.style.width;
+  b.style.opacity = 0.06 + Math.random()*0.28;
+  b.style.animationDuration = 8 + Math.random()*12 + 's';
+  b.style.bottom = -Math.random()*100 + 'px';
+  bubblesContainer.appendChild(b);
+}
+
+/* simple confetti (particles) */
+const confettiCanvas = document.getElementById('confettiCanvas');
+confettiCanvas.width = window.innerWidth;
+confettiCanvas.height = window.innerHeight;
+window.addEventListener('resize', ()=>{ confettiCanvas.width = innerWidth; confettiCanvas.height = innerHeight; });
+const ctx = confettiCanvas.getContext('2d');
+
+function launchConfetti(count=80){
+  const pieces = [];
+  for(let i=0;i<count;i++){
+    pieces.push({
+      x: Math.random()*confettiCanvas.width,
+      y: -20 - Math.random()*200,
+      r: 4 + Math.random()*8,
+      dx: -2 + Math.random()*4,
+      dy: 2 + Math.random()*4,
+      color: ['#25D366','#128C7E','#34B7F1','#FFD166','#FF6B6B'][Math.floor(Math.random()*5)],
+      tilt: Math.random()*360,
+      spin: -0.05 + Math.random()*0.1
+    });
+  }
+  let t = 0;
+  function frame(){
+    t++;
+    ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+    for(let p of pieces){
+      p.x += p.dx;
+      p.y += p.dy;
+      p.tilt += p.spin;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.tilt);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.r/2, -p.r/2, p.r, p.r*1.7);
+      ctx.restore();
+    }
+    if(t < 120){ requestAnimationFrame(frame); }
+    else { ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height); }
+  }
+  frame();
+}
+
+/* small sound on success - optional */
+const audio = new Audio();
+audio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="; // tiny silent placeholder (replace if you want a ding)
+
+/* validation helpers */
+const fields = ['name','phone','experience','rules'];
+function updateProgress(){
+  const total = fields.length;
+  let ok = 0;
+  for(const id of fields){
+    const el = document.getElementById(id);
+    if(el && el.value.trim() !== '') ok++;
+  }
+  const pct = Math.round((ok/total)*100);
+  progressBar.style.width = pct + '%';
+}
+
+function validatePhone(value){
+  // strict: starts with + followed by 7 to 15 digits
+  return /^\+\d{7,15}$/.test(value.trim());
+}
+
+function setFieldState(el, valid){
+  const check = document.getElementById('check-'+el.id);
+  if(valid){
+    el.classList.remove('invalid'); el.classList.add('valid');
+    if(check){ check.classList.remove('invalid'); check.classList.add('valid'); check.textContent = '✔'; }
+  } else {
+    el.classList.remove('valid'); el.classList.add('invalid');
+    if(check){ check.classList.remove('valid'); check.classList.add('invalid'); check.textContent = '✖'; }
+  }
+}
+
+/* live validation */
+document.querySelectorAll('#adminForm input, #adminForm textarea, #adminForm select').forEach(el=>{
+  el.addEventListener('input', ()=>{
+    let ok = (el.value.trim() !== '');
+    if(el.id === 'phone') ok = validatePhone(el.value);
+    setFieldState(el, ok);
+    updateProgress();
+  });
+});
+
+/* shake helper */
+function shakeElement(el){
+  el.classList.remove('shake');
+  void el.offsetWidth;
+  el.classList.add('shake');
+}
+
+/* core: build the message */
+function buildMessage(){
+  const name = document.getElementById('name').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const experience = document.getElementById('experience').value.trim();
+  const rules = document.getElementById('rules').value.trim();
+  return `Bonjour,%0AJ'aimerais devenir admin du groupe WhatsApp.%0A%0ANom: ${encodeURIComponent(name)}%0ANuméro: ${encodeURIComponent(phone)}%0APourquoi: ${encodeURIComponent(experience)}%0AConnaissance des règles: ${encodeURIComponent(rules)}`;
+}
+
+/* copy + open */
+function showToast(msg='✅ Message copié ! Collez-le dans le groupe WhatsApp.'){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),3000);
+}
+
+/* Submit */
+adminForm.addEventListener('submit', function(e){
+  e.preventDefault();
+
+  // basic validation
+  const name = document.getElementById('name'), phone = document.getElementById('phone'), exp = document.getElementById('experience'), rulesEl = document.getElementById('rules');
+
+  // check reCAPTCHA client-side token (v2 will produce response in textarea g-recaptcha-response)
+  const captcha = document.querySelector('[name="g-recaptcha-response"]');
+  if(!captcha || !captcha.value){
+    // user didn't tick reCAPTCHA
+    shakeElement(formCard);
+    showToast('❗ Veuillez valider le reCAPTCHA.');
+    return;
+  }
+
+  let ok = true;
+  if(name.value.trim()===''){ setFieldState(name,false); ok=false; }
+  if(!validatePhone(phone.value)){ setFieldState(phone,false); ok=false; }
+  if(exp.value.trim()===''){ setFieldState(exp,false); ok=false; }
+  if(rulesEl.value===''){ setFieldState(rulesEl,false); ok=false; }
+
+  if(!ok){
+    // visual feedback
+    shakeElement(formCard);
+    showToast('❌ Complète correctement tous les champs.');
+    return;
+  }
+
+  // build plain message (unencoded) for clipboard and encoded for url open
+  const plainMsg = `Bonjour,\nJ'aimerais devenir admin du groupe WhatsApp.\n\nNom: ${name.value.trim()}\nNuméro: ${phone.value.trim()}\nPourquoi: ${exp.value.trim()}\nConnaissance des règles: ${rulesEl.value.trim()}`;
+  const encoded = buildMessage();
+
+  // copy to clipboard
+  navigator.clipboard.writeText(plainMsg).then(()=>{
+    showToast();
+    try{ audio.play(); }catch(e){}
+    launchConfetti(80);
+    // open group link
+    // We open group link, user pastes message and send.
+    window.open(groupLink, '_blank');
+    // Also open WhatsApp web with prefilled message to admin phone (optional) - not used because group can't receive direct prefilled
+  }).catch(err=>{
+    // fallback: instruct manual copy
+    showToast('Erreur copie auto — copie manuellement le message (Ctrl/Cmd+C)');
+    window.open(groupLink, '_blank');
+  });
+});
+
+/* copy button manual */
+copyBtn.addEventListener('click', ()=>{
+  const plainMsg = `Bonjour,\nJ'aimerais devenir admin du groupe WhatsApp.\n\nNom: ${document.getElementById('name').value.trim()}\nNuméro: ${document.getElementById('phone').value.trim()}\nPourquoi: ${document.getElementById('experience').value.trim()}\nConnaissance des règles: ${document.getElementById('rules').value.trim()}`;
+  navigator.clipboard.writeText(plainMsg).then(()=> showToast()).catch(()=> showToast('Erreur: copier manuellement') );
+});
+
+/* floating button opens group */
+floatingBtn.addEventListener('click', ()=> window.open(groupLink,'_blank'));
+
+/* confetti manual button */
+confettiBtn.addEventListener('click', ()=> launchConfetti(140));
+
+/* theme toggle */
+let dark = false;
+toggleTheme.addEventListener('click', ()=>{
+  dark = !dark;
+  if(dark){
+    document.body.style.background = 'linear-gradient(-45deg,#041f11,#07261a,#05302a,#0b4d36)';
+    toggleTheme.textContent = 'Mode Clair';
+  } else {
+    document.body.style.background = '';
+    toggleTheme.textContent = 'Mode Sombre/Clair';
+  }
+});
+
+/* progress init */
+updateProgress();
+
+</script>
+</body>
+</html>
